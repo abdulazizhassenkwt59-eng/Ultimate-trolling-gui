@@ -1,0 +1,87 @@
+-- Ultimate Trolling GUI Server Script
+-- Handles commands and actions securely
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextChatService = game:GetService("TextChatService")
+local Debris = game:GetService("Debris")
+
+-- RemoteEvent for bi-directional communication
+local trollRemote = ReplicatedStorage:FindFirstChild("TrollRemote")
+if not trollRemote then
+    trollRemote = Instance.new("RemoteEvent")
+    trollRemote.Name = "TrollRemote"
+    trollRemote.Parent = ReplicatedStorage
+end
+
+-- Admin check (customize: e.g., only game owner or specific UserIDs)
+local function isAdmin(player)
+    return player.UserId == game.CreatorId -- Or add more checks, e.g., player:GetAttribute("Admin") == true
+end
+
+-- Handle player actions from client
+trollRemote.OnServerEvent:Connect(function(player, action, ...)
+    if not isAdmin(player) then return end -- Security: Only admins can trigger
+
+    if action == "Rickroll" then
+        -- Rickroll is client-side only (no server need), but we could log it if wanted
+        print(player.Name .. " got rickrolled!")
+
+    elseif action == "FakeBan" then
+        -- Fake ban is client-side GUI, no server action needed
+
+    elseif action == "MemeSpam" then
+        -- Server handles chat spam for all to see
+        local memes = {"Doge says: Such troll! Wow!", "This is fine... 🐶🔥", "Troll level: Expert", "Never gonna give you up... again!", "Poggers! 😎"}
+        for i = 1, 6 do
+            local message = memes[math.random(1, #memes)]
+            -- TextChatService (modern)
+            pcall(function()
+                TextChatService.TextChannels.RBXGeneral:SendAsync(message) -- Or use a specific channel
+            end)
+            -- Legacy chat fallback (uncomment if needed):
+            -- ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer(message, "All")
+            wait(5)
+        end
+
+    elseif action == "InvisibleToggle" then
+        -- Server handles transparency (visible to all players)
+        local character = player.Character
+        if character then
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.Transparency = 0.8
+                end
+            end
+            -- Revert after 5 seconds
+            Debris:AddItem(Instance.new("BoolValue"), 5) -- Placeholder for timing
+            wait(5)
+            if character.Parent then -- Check if still alive
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.Transparency = 0
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Chat command listener
+Players.PlayerAdded:Connect(function(player)
+    player.Chatted:Connect(function(message)
+        local lowerMsg = message:lower()
+        if lowerMsg:match("^/troll") and isAdmin(player) then
+            local args = message:split(" ")
+            local target = player
+            if args[2] then
+                target = Players:FindFirstChild(args[2])
+            end
+            if target then
+                trollRemote:FireClient(target, "ShowGUI")
+            end
+        end
+    end)
+end)
+
+print("Trolling Server loaded! Use /troll in chat.")
